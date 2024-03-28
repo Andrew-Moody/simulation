@@ -19,3 +19,5 @@ target_include_directories(glad
 )
 
 set_target_properties(glad PROPERTIES FOLDER "Dependencies")
+
+target_link_libraries(${MAIN_TARGET} PRIVATE glad)

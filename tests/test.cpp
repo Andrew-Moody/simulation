@@ -4,5 +4,5 @@
 
 TEST(HelloTest, HelloMeshing)
 {
-    EXPECT_TRUE(hello_meshing());
+    EXPECT_TRUE(graphics::hello_meshing());
 }
