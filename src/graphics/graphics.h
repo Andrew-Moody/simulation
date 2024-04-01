@@ -1,5 +1,10 @@
 #pragma once
 
+#include <vector>
+
+#include "staticmesh.h"
+#include "shader.h"
+
 struct GLFWwindow;
 
 namespace graphics
@@ -50,10 +55,21 @@ namespace graphics
         static bool is_glad_initialized;
     };
 
+
     class Application
     {
     public:
 
+        void setup();
+
         void run();
+
+    private:
+
+        Window window_{};
+        std::vector<StaticMesh> meshes_{};
+        ShaderProgram shader_{};
     };
+
+    StaticMesh generate_sample_mesh();
 }

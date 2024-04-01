@@ -4,6 +4,10 @@ target_sources(${MAIN_TARGET}
 	PRIVATE
 		graphics.h
 		graphics.cpp
+		staticmesh.h
+		staticmesh.cpp
+		shader.h
+		shader.cpp
 )
 
 target_include_directories(${MAIN_TARGET}
