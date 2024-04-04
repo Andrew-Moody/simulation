@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.13)
 
 project(MESHING LANGUAGES C CXX)
 
-set(MAIN_TARGET meshing)
-set(TEST_TARGET testmeshing)
+set(MAIN_TARGET simulation)
+set(TEST_TARGET testsimulation)
 
 add_executable(${TEST_TARGET} "")
 

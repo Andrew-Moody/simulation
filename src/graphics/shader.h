@@ -2,7 +2,7 @@
 
 #include <string_view>
 
-namespace graphics
+namespace moodysim
 {
     // Basic vertex shader
     const char* const BASIC_VS_SRC = "#version 420 core\n"

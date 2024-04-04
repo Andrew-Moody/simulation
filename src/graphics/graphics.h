@@ -7,9 +7,9 @@
 
 struct GLFWwindow;
 
-namespace graphics
+namespace moodysim
 {
-    bool hello_meshing();
+    bool hello_simulation();
 
     // Not to be confused with OpenGL Context
     class GLFWContext
@@ -67,9 +67,7 @@ namespace graphics
     private:
 
         Window window_{};
-        std::vector<StaticMesh> meshes_{};
+        std::vector<MeshBuffer> meshes_{};
         ShaderProgram shader_{};
     };
-
-    StaticMesh generate_sample_mesh();
 }

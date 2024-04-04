@@ -8,7 +8,7 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-namespace graphics
+namespace moodysim
 {
     Shader::Shader(const std::string_view source, ShaderType shader_type)
     {

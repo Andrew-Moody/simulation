@@ -4,5 +4,5 @@
 
 TEST(HelloTest, HelloMeshing)
 {
-    EXPECT_TRUE(graphics::hello_meshing());
+    EXPECT_TRUE(moodysim::hello_simulation());
 }
