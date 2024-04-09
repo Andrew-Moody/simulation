@@ -1,5 +1,6 @@
 #include "mesh.h"
 
+#include <iostream>
 #include <vector>
 #include <array>
 #include <stack>
@@ -8,6 +9,7 @@
 
 namespace moodysim
 {
+    // Repurpose to generate point cloud
     SurfaceMeshData generate_sample_mesh()
     {
         std::vector<SMVertex> vertices{};
@@ -60,41 +62,37 @@ namespace moodysim
         return SurfaceMeshData{ std::move(vertices), std::move(indices) };
     }
 
-    std::vector<Point3D> normalize_points(const std::vector<Point3D>& points)
+    SurfaceMeshData DelaunayGenerator::generate_delaunay_mesh()
     {
-        return std::vector<Point3D>{};
+        triangulate();
+
+        std::vector<SMVertex> vertices{};
+        std::vector<unsigned int> indices{};
+        return SurfaceMeshData{ vertices, indices };
     }
 
-    int find_adjacent(int i, int j, const std::vector<std::array<int, 3>>& neighbors)
-    {
-        // For two adjacent triangles i and j find the neighbor index for triangle i
-        // that matches the triangle j
-
-        return -1;
-    }
-
-    SurfaceMeshData generate_delaunay_mesh(const std::vector<Point3D>& points)
+    void DelaunayGenerator::triangulate()
     {
         // Indices into the point vector that form each triangle
         std::vector<std::array<int, 3>> triangles;
 
         // Indices into the triangles vector that denote adjacent triangles
-        std::vector<std::array<int, 3>> adjacency;
+        std::vector<std::array<int, 3>> neighbors;
 
         // number of points not counting the super triangle
-        int num_pts{ static_cast<int>(points.size()) };
+        int num_pts{ static_cast<int>(points_.size()) };
 
-        // Create a normalized copy of the points vector (need to keep original values)
-        std::vector<Point3D> norm_pts{ normalize_points(points) };
+        // Normalize the points vector
+        normalize_points();
 
         // If sorting into bins, do it here (would need to map sorted points back to the original points)
 
-        // Add super triangle 
-        norm_pts.push_back({ -100.f, -100.f, 0.f });
-        norm_pts.push_back({ 100.f, -100.f, 0.f });
-        norm_pts.push_back({ 0.f, 100.f, 0.f });
+        // Add super triangle (-1 denotes no neighbor for that edge)
+        points_.push_back({ -100.f, -100.f, 0.f });
+        points_.push_back({ 100.f, -100.f, 0.f });
+        points_.push_back({ 0.f, 100.f, 0.f });
         triangles.push_back({ num_pts, num_pts + 1, num_pts + 2 });
-        adjacency.push_back({ -1, -1, -1 });
+        neighbors.push_back({ -1, -1, -1 });
 
 
         // A stack is used to track triangles that need to be checked
@@ -104,22 +102,29 @@ namespace moodysim
         for (int p = 0; p < num_pts; ++p)
         {
             // First determine which triangle the new point is inside
-            int enclosing_tri_idx{};
-            std::array<int, 3> enclosing_tri{ triangles[enclosing_tri_idx] };
-            std::array<int, 3> enclosing_adj{ adjacency[enclosing_tri_idx] };
+            int enclosing_tri_idx{ find_enclosing_triangle() };
+
+            std::array<int, 3> enclosing_tri{ triangles_[enclosing_tri_idx] };
+            std::array<int, 3> enclosing_adj{ neighbors_[enclosing_tri_idx] };
 
             // Delete the enclosing triangle and create 3 new triangles between
             // the enclosing vertices and the new vertex p (Always make p the first vertex)
             // replace enclosing triangle with the first new one and add the other two to the vector
             // Keep vertex indices ordered counter-clockwise for each triangle 
-            triangles[enclosing_tri_idx] = { p, enclosing_tri[0], enclosing_tri[1] };
-            triangles.push_back({ p, enclosing_tri[1], enclosing_tri[2] });
-            triangles.push_back({ p, enclosing_tri[2], enclosing_tri[0] });
+            triangles_[enclosing_tri_idx] = { p, enclosing_tri[0], enclosing_tri[1] };
+            triangles_.push_back({ p, enclosing_tri[1], enclosing_tri[2] });
+            triangles_.push_back({ p, enclosing_tri[2], enclosing_tri[0] });
 
             // Indices for the new triangles
             int tri_0{ enclosing_tri_idx };
             int tri_1{ static_cast<int>(triangles.size()) - 2 };
             int tri_2{ static_cast<int>(triangles.size()) - 1 };
+
+            // The triangles adjacent to the original triangle become the opposite adjacent neighbor
+            // to the new triangles i.e. they share the edge that does not include the new point
+            int opp_adj_0 = enclosing_adj[0];;
+            int opp_adj_1 = enclosing_adj[1];
+            int opp_adj_2 = enclosing_adj[2];
 
             // When adding to the adjacency list make the opposite adjacent triangle to p
             // the middle adjacency entry so we know when popping a triangle t from the stack
@@ -131,51 +136,124 @@ namespace moodysim
             // so actually we need E(1, I) to be opposite adjacent of p not E(2, I)
 
             // Update existing adjanceny entry
-            adjacency[tri_0][0] = tri_2;
-            adjacency[tri_0][1] = enclosing_adj[0];
-            adjacency[tri_0][2] = tri_1;
+            neighbors_[tri_0][0] = tri_2;
+            neighbors_[tri_0][1] = opp_adj_0;
+            neighbors_[tri_0][2] = tri_1;
 
             //adjacency[tri_1][0] = tri_0;
-            //adjacency[tri_1][1] = enclosing_adj[1];
+            //adjacency[tri_1][1] = opp_adj_1;
             //adjacency[tri_1][2] = tri_2;
 
             //adjacency[tri_2][0] = tri_1;
-            //adjacency[tri_2][1] = enclosing_adj[2];
+            //adjacency[tri_2][1] = opp_adj_2;
             //adjacency[tri_2][2] = tri_0;
 
             // Add adjacency entries for the two new triangles
-            adjacency.push_back({ tri_0, enclosing_adj[1], tri_2 });
-            adjacency.push_back({ tri_1, enclosing_adj[2], tri_0 });
+            neighbors_.push_back({ tri_0, opp_adj_1, tri_2 });
+            neighbors_.push_back({ tri_1, opp_adj_2, tri_0 });
 
 
             // Place the new triangles containing p in the stack as long as the edges opposite
             // p have a neighboring triangle (i.e. is not on a boundary t = -1)
             // While doing this update the adjacency list for the enclosing triangles neighbors
             // as long as they exist (!= -1) The first one enclosing_adj[0] does not need to be 
-            // updated since it already points to tri_0 since we reused but it wont hurt
+            // updated since it already points to tri_0 since it was reused but it wont hurt
 
-            if (adjacency[tri_0][1] != -1)
+            if (opp_adj_0 != -1)
             {
                 tri_stack.push(tri_0);
             }
-            if (adjacency[tri_1][1] != -1)
+            if (opp_adj_1 != -1)
             {
+                // Update opposite adjancent 1's neighbor entry that used to point
+                // to enclosing triangle to now point toward triangle 1
+                update_adjacent(opp_adj_1, enclosing_tri_idx, tri_1);
 
                 tri_stack.push(tri_1);
             }
-            if (adjacency[tri_2][1] != -1)
+            if (opp_adj_2 != -1)
             {
+                // Update opposite adjancent 2's neighbor entry that used to point
+                // to enclosing triangle to now point toward triangle 2
+                update_adjacent(opp_adj_2, enclosing_tri_idx, tri_2);
 
                 tri_stack.push(tri_2);
             }
 
 
-            // Check Delaunay condition and swap as needed propogating via the stack
+            // Check Delaunay condition and swap as needed propagating via the stack
+            while (!tri_stack.empty())
+            {
+                int tri_l = tri_stack.top();
+                tri_stack.pop();
 
+                // the point that was added when tri_l was formed
+                int point_p = triangles_[tri_l][0];
+
+                // The triangle opposite adjacent to the point p
+                int tri_r = neighbors_[tri_l][1];
+
+                // Check if point p is inside the circumcircle of triangle r
+                if (check_delaunay(tri_l, tri_r))
+                {
+                    // Swap the diagonal edge by updating the points of l and r
+                    // then update the adjancies of the effected neighbors
+                    swap_triangles(tri_l, tri_r);
+
+                    // There are now potentially two triangles adjacent to l and r (A, B)
+                    // that are opposite p. Place these on the stack if they exist
+                    if (neighbors_[tri_l][1] != -1)
+                    {
+                        tri_stack.push(neighbors_[tri_l][1]);
+                    }
+                    if (neighbors_[tri_r][1] != -1)
+                    {
+                        tri_stack.push(neighbors_[tri_r][1]);
+                    }
+                }
+            }
+        }
+    }
+
+    void DelaunayGenerator::normalize_points()
+    {
+
+    }
+
+    void DelaunayGenerator::sort_points()
+    {
+
+    }
+
+    int DelaunayGenerator::find_enclosing_triangle()
+    {
+        return -1;
+    }
+
+    void DelaunayGenerator::update_adjacent(int target, int old_neighbor, int new_neighbor)
+    {
+        // Update the adjacency entry such that the entry pointing
+        // to old_neighbor now points to new_neighbor
+
+        for (int index = 0; index < 3; ++index)
+        {
+            if (neighbors_[target][index] == old_neighbor)
+            {
+                neighbors_[target][index] = new_neighbor;
+                return;
+            }
         }
 
-        std::vector<SMVertex> vertices{};
-        std::vector<unsigned int> indices{};
-        return SurfaceMeshData{ vertices, indices };
+        std::cerr << "Triangulation Error: update_adjacent failed to find a match for old_neighbor" << std::endl;
+    }
+
+    bool DelaunayGenerator::check_delaunay(int tri_l, int tri_r)
+    {
+        return false;
+    }
+
+    void DelaunayGenerator::swap_triangles(int tri_l, int tri_r)
+    {
+
     }
 }

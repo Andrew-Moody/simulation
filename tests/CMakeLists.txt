@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.13)
 
 target_sources(${TEST_TARGET}
     PRIVATE
-        test.cpp
+        #test.cpp
+		delaunaytest.cpp
 )
 
 target_include_directories(${TEST_TARGET}
