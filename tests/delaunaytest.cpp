@@ -8,7 +8,9 @@ TEST(Delaunay, Normalization)
     using namespace moodysim;
 
     std::vector<Point3D> points{
-        { 10.f, 10.f, 10.f }
+        { 10.f, -10.f, 0.f },
+        { -10.f, 0.f, 0.f },
+        { 0.f, 10.f, 0.f }
     };
 
     DelaunayGenerator delaunay_gen{ points };
@@ -23,7 +25,7 @@ TEST(Delaunay, Normalization)
     for (const auto point : norm_pts)
     {
         if (point.x > 1.f || point.y > 1.f || point.z > 1.f ||
-            point.x < 0.f || point.y > 0.f || point.z > 0.f)
+            point.x < 0.f || point.y < 0.f || point.z < 0.f)
         {
             pass = false;
         }
@@ -45,7 +47,7 @@ TEST(Delaunay, FindEnclosingTriangle)
     std::vector<Point3D> test_points{
         { 0.5f, -0.5f, 0.f },
         { 0.f, 5.f, 0.f },
-        { 0.5f, -0.5f, 0.f },
+        { -0.5f, -0.5f, 0.f },
         { 0.f, 0.f, 0.f },
     };
 
@@ -56,7 +58,8 @@ TEST(Delaunay, FindEnclosingTriangle)
     std::vector<std::array<int, 3>> test_neighbors{};
 
     DelaunayGenerator delaunay_gen{ test_points, {}, test_triangles, test_neighbors };
-    int result = delaunay_gen.find_enclosing_triangle();
+
+    int result = delaunay_gen.find_enclosing_triangle(3);
 
     EXPECT_EQ(result, 0);
 }
@@ -68,7 +71,7 @@ TEST(Delaunay, UpdateNeighbors)
     std::vector<Point3D> test_points{
         { 0.5f, -0.5f, 0.f },
         { 0.f, 5.f, 0.f },
-        { 0.5f, -0.5f, 0.f },
+        { -0.5f, -0.5f, 0.f },
         { 0.f, 0.f, 0.f },
         { 0.5f, 0.5f, 0.f },
         { -0.5f, 0.5f, 0.f },
@@ -133,7 +136,7 @@ TEST(Delaunay, CheckDelaunay)
     std::vector<Point3D> test_points{
         { 0.5f, -0.5f, 0.f },
         { 0.f, 5.f, 0.f },
-        { 0.5f, -0.5f, 0.f },
+        { -0.5f, -0.5f, 0.f },
         { 0.5f, 0.5f, 0.f },
         { -0.5f, 0.5f, 0.f },
     };
@@ -170,7 +173,7 @@ TEST(Delaunay, SwapTriangles)
     std::vector<Point3D> test_points{
         { 0.5f, -0.5f, 0.f },
         { 0.f, 5.f, 0.f },
-        { 0.5f, -0.5f, 0.f },
+        { -0.5f, -0.5f, 0.f },
         { -0.5f, 0.5f, 0.f }
     };
 

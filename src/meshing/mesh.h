@@ -46,7 +46,8 @@ namespace moodysim
         // Optionally sort into bins to improve efficiency
         void sort_points();
 
-        int find_enclosing_triangle();
+        // Find the triangle that encloses the point p
+        int find_enclosing_triangle(int p);
 
         // Update the adjacency entry such that the entry pointing
         // to old_neighbor now points to new_neighbor

@@ -102,7 +102,7 @@ namespace moodysim
         for (int p = 0; p < num_pts; ++p)
         {
             // First determine which triangle the new point is inside
-            int enclosing_tri_idx{ find_enclosing_triangle() };
+            int enclosing_tri_idx{ find_enclosing_triangle(p) };
 
             std::array<int, 3> enclosing_tri{ triangles_[enclosing_tri_idx] };
             std::array<int, 3> enclosing_adj{ neighbors_[enclosing_tri_idx] };
@@ -217,7 +217,61 @@ namespace moodysim
 
     void DelaunayGenerator::normalize_points()
     {
+        // Normalize the coordinates of all of the points between 0 and 1
 
+        // Determine the min and max values for x, y, and z
+        float xmax{ points_[0].x };
+        float ymax{ points_[0].y };
+        float zmax{ points_[0].z };
+
+        float xmin{ points_[0].x };
+        float ymin{ points_[0].y };
+        float zmin{ points_[0].z };
+
+        for (auto point : points_)
+        {
+            if (point.x > xmax)
+            {
+                xmax = point.x;
+            }
+            else if (point.x < xmin)
+            {
+                xmin = point.x;
+            }
+
+            if (point.y > ymax)
+            {
+                ymax = point.y;
+            }
+            else if (point.y < ymin)
+            {
+                ymin = point.y;
+            }
+
+            if (point.z > zmax)
+            {
+                zmax = point.z;
+            }
+            else if (point.z < zmin)
+            {
+                zmin = point.z;
+            }
+        }
+
+        // find the widest span between max and min between x, y, and z
+        float xdelta = xmax - xmin;
+        float ydelta = ymax - ymin;
+        float zdelta = zmax - zmin;
+        float dmax = std::max(xdelta, std::max(ydelta, zdelta));
+
+        // shift every point coordinate to be positive and scale by max span
+        // to get coordinates ranging from 0 to 1
+        for (auto& point : points_)
+        {
+            point.x = (point.x - xmin) / dmax;
+            point.y = (point.y - ymin) / dmax;
+            point.z = (point.z - zmin) / dmax;
+        }
     }
 
     void DelaunayGenerator::sort_points()
@@ -225,9 +279,72 @@ namespace moodysim
 
     }
 
-    int DelaunayGenerator::find_enclosing_triangle()
+    int DelaunayGenerator::find_enclosing_triangle(int p)
     {
-        return -1;
+        int result{ -1 };
+
+        // Naive solution check every triangle
+        // this can be greatly improved once sorting is implemented
+        for (int t = 0; t < triangles_.size(); ++t)
+        {
+            // Check if triangle t is enclosing point p by checking
+            // if the point falls on or to the left of each edge
+            bool enclosing{ true };
+            for (int e = 0; e < 3; ++e)
+            {
+                // end point of the edge with start point e
+                int e2{ (e + 1) % 3 };
+
+                Point3D v1{ points_[triangles_[t][e]] }; // point where the edge starts
+                Point3D v2{ points_[triangles_[t][e2]] }; // point where the edge stops
+                Point3D vp{ points_[p] }; // search point
+
+                // Subtract edge start to get vectors from start to end and from start to point
+                v2.x -= v1.x;
+                v2.y -= v1.y;
+                v2.z -= v1.z;
+
+                vp.x -= v1.x;
+                vp.y -= v1.y;
+                vp.z -= v1.z;
+
+                // Take the cross product of these two vectors
+                Point3D cross_product{
+                    v2.y * vp.z - v2.z * vp.y,
+                    v2.z * vp.x - v2.x * vp.z,
+                    v2.x * vp.y - v2.y * vp.x
+                };
+
+                // For 2D the edge normal is always out of plane
+                Point3D normal{ 0.f, 0.f, 1.f };
+
+                // Take the dot product between the cross product result and the edge normal vector
+                // This can be used to determine if cross product is in the same direction as the normal
+                float dot_product{
+                    cross_product.x * normal.x +
+                    cross_product.y * normal.y +
+                    cross_product.z * normal.z
+                };
+
+                // If the dot product is zero or positive the point is to the left of the edge
+                // because the cross product edge vector x point vector points in the same direction
+                // as the normal. If you where to use right hand rule on the two vectors your
+                // thumb would point upwards as expected
+                if (dot_product < 0.f)
+                {
+                    enclosing = false;
+                    break;
+                }
+            }
+
+            if (enclosing)
+            {
+                result = t;
+                break;
+            }
+        }
+
+        return result;
     }
 
     void DelaunayGenerator::update_adjacent(int target, int old_neighbor, int new_neighbor)
