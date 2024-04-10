@@ -366,11 +366,114 @@ namespace moodysim
 
     bool DelaunayGenerator::check_delaunay(int tri_l, int tri_r)
     {
-        return false;
+        // Determine points p, v1, v2, and v3 of the quadrilateral
+        int p{ triangles_[tri_l][0] };
+        int v1{ triangles_[tri_l][2] };
+        int v2{ triangles_[tri_l][1] };
+
+        // Find the point v3 in triangle R that is not shared with triangle L
+        // it might be the first point in R, but it also might not be
+        int v3 = { -1 };
+        for (int v3_idx = 0; v3_idx < 3; ++v3_idx)
+        {
+            if (triangles_[tri_r][v3_idx] != v1 && triangles_[tri_r][v3_idx] != v2)
+            {
+                v3 = triangles_[tri_r][v3_idx];
+                break;
+            }
+        }
+
+        // Intermediate subtraction results
+        float x13{ points_[v1].x - points_[v3].x };
+        float x23{ points_[v2].x - points_[v3].x };
+        float x1p{ points_[v1].x - points_[p].x };
+        float x2p{ points_[v2].x - points_[p].x };
+
+        float y13{ points_[v1].y - points_[v3].y };
+        float y23{ points_[v2].y - points_[v3].y };
+        float y1p{ points_[v1].y - points_[p].y };
+        float y2p{ points_[v2].y - points_[p].y };
+
+        float cos_a = x13 * x23 + y13 * y23;
+        float cos_b = x2p * x1p + y1p * y2p;
+        float sin_a = x13 * y23 - y13 * x23;
+        float sin_b = x2p * y1p - x1p * y2p;
+        float sin_ab = sin_a * cos_b + sin_b * cos_a;
+
+        bool swap{ false };
+
+        // Main condition to check, but suffers from round off error near 0
+        bool sin_ab_neg = sin_ab < 0.f;
+
+        // a + b == pi (cos_a == 0 && cos_b == 0) is neutral meaning the triangulation
+        // is correct regardless of swap
+
+        // Test if cos_a and cos_b are both negative which would prove a + b > pi to be true
+        // and covers the case where a and b are both near pi which the sin_ab check does not catch
+        bool both_cos_neg = cos_a < 0 && cos_b < 0.f;
+
+        // If cos_a and cos_b are both positive then a + b <= pi
+        // and therefore a + b > pi can't be true so there is no need to swap
+        // otherwise need to check sin_ab to make final determination
+        // if true it also ensures a and b are not both near zero
+        bool one_cos_neg = cos_a < 0.f || cos_b < 0.f;
+
+        if (both_cos_neg || (one_cos_neg && sin_ab_neg))
+        {
+            swap = true;
+        }
+
+        return swap;
     }
 
     void DelaunayGenerator::swap_triangles(int tri_l, int tri_r)
     {
+        std::array<int, 3> tri_l_pts{ triangles_[tri_l] };
+        std::array<int, 3> tri_r_pts{ triangles_[tri_r] };
+        std::array<int, 3> r_neighbors = neighbors_[tri_r];
 
+        // Update triangles
+
+        // Determine points p, v1, v2, and v3 of the quadrilateral
+        int p{ tri_l_pts[0] };
+        int v1{ tri_l_pts[2] };
+        int v2{ tri_l_pts[1] };
+
+        // Find the point v3 in triangle R that is not shared with triangle L
+        int v3 = { -1 };
+        int v3_idx{ 0 };
+
+        for (; v3_idx < 3; ++v3_idx)
+        {
+            if (tri_r_pts[v3_idx] != v1 && tri_r_pts[v3_idx] != v2)
+            {
+                v3 = tri_r_pts[v3_idx];
+                break;
+            }
+        }
+
+        triangles_[tri_l] = { p, v2, v3 };
+        triangles_[tri_r] = { p, v3, v1 };
+
+        // Update neighbors
+
+        // Determine the neighbors A, B, and C of the quadrilateral
+        int n_a{ -1 };
+        int n_b{ -1 };
+        int n_c{ neighbors_[tri_l][2] }; // always the last neighbor of L
+
+        // Determine neighbors A and B of triangle R based on the position
+        // of v3 in triangle R's points array
+
+        // neighbor B has the same position in neighbors array as point v3 in points array
+        n_b = neighbors_[tri_r][v3_idx];
+
+        // neighbor A is shifted two places from neighbor B
+        n_a = neighbors_[tri_r][(v3_idx + 2) % 3];
+
+        // Triangle L's first neighbor does not change
+        neighbors_[tri_l][1] = n_a;
+        neighbors_[tri_l][2] = tri_r;
+        neighbors_[tri_r] = { tri_l, n_b, n_c };
     }
 }
