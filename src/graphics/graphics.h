@@ -2,7 +2,7 @@
 
 #include <vector>
 
-#include "staticmesh.h"
+#include "meshbuffer.h"
 #include "shader.h"
 
 struct GLFWwindow;
@@ -63,6 +63,8 @@ namespace moodysim
         void setup();
 
         void run();
+
+        void add_mesh(SurfaceMeshData mesh_data);
 
     private:
 

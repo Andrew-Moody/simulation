@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 
 #include "mesh.h"
+#include "graphics.h"
+#include "surfacemeshdata.h"
 
 
 TEST(Delaunay, Normalization)
@@ -217,4 +219,42 @@ TEST(Delaunay, SwapTriangles)
             EXPECT_EQ(neighbors[i][j], neighbors_solution[i][j]);
         }
     }
+}
+
+
+TEST(Delaunay, Generation)
+{
+    using namespace moodysim;
+
+    /* std::vector<Point3D> test_points{
+        { 0.5f, -0.5f, 0.f },
+        { 0.f, 0.5f, 0.f },
+        { -0.5f, -0.5f, 0.f }
+    }; */
+
+    std::vector<Point3D> test_points{
+        { 0.5f, -0.5f, 0.f },
+        { 0.f, 0.5f, 0.f },
+        { -0.5f, -0.5f, 0.f },
+        { 0.f, 0.f, 0.f },
+        { 0.5f, 0.5f, 0.f },
+        { -0.5f, 0.5f, 0.f },
+        //{ 0.f, -0.75f, 0.f }
+    };
+
+    DelaunayGenerator delaunay_gen{ test_points };
+
+    SurfaceMeshData mesh_data = delaunay_gen.generate_delaunay_mesh();
+
+    //SurfaceMeshData mesh_data = generate_sample_mesh();
+
+    GLFWContext glfw_context{};
+
+    Application application{};
+
+    application.setup();
+
+    application.add_mesh(std::move(mesh_data));
+
+    application.run();
 }

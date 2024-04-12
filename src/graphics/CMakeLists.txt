@@ -4,8 +4,8 @@ target_sources(${MAIN_TARGET}
 	PRIVATE
 		graphics.h
 		graphics.cpp
-		staticmesh.h
-		staticmesh.cpp
+		meshbuffer.h
+		meshbuffer.cpp
 		shader.h
 		shader.cpp
 )

@@ -7,7 +7,7 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-#include "staticmesh.h"
+#include "meshbuffer.h"
 #include "surfacemeshdata.h"
 #include "mesh.h"
 
@@ -20,6 +20,8 @@ namespace moodysim
         Application application{};
 
         application.setup();
+
+        application.add_mesh(generate_sample_mesh());
 
         application.run();
 
@@ -175,11 +177,6 @@ namespace moodysim
 
     void Application::setup()
     {
-        SurfaceMeshData mesh_data{ generate_sample_mesh() };
-        MeshBuffer mesh_buffer{ mesh_data };
-
-        meshes_.push_back(std::move(mesh_buffer));
-
         std::string vsource{ VCOLOR_VS_SRC };
         std::string fsource{ VCOLOR_FS_SRC };
 
@@ -192,5 +189,13 @@ namespace moodysim
 
         //glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Default
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // Wireframe
+    }
+
+
+    void Application::add_mesh(SurfaceMeshData mesh_data)
+    {
+        MeshBuffer mesh_buffer{ mesh_data };
+
+        meshes_.push_back(std::move(mesh_buffer));
     }
 };
