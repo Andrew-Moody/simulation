@@ -159,7 +159,7 @@ namespace moodysim
             //glUniformMatrix4fv(application.proj_matrix_id, 1, GL_FALSE, (float*)&(application.camera->view_transform));
 
             // Clear the screen for more drawing
-            glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+            glClearColor(0.85f, 0.9f, 1.0f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
 
             // Draw model

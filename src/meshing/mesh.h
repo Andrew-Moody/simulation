@@ -5,14 +5,17 @@
 
 namespace moodysim
 {
-    class SurfaceMeshData;
-
-    SurfaceMeshData generate_sample_mesh();
 
     struct Point3D
     {
         float x{}, y{}, z{};
     };
+
+    class SurfaceMeshData;
+
+    SurfaceMeshData generate_sample_mesh();
+
+    std::vector<Point3D> generate_sample_points();
 
 
     // This class is not intended to be a public interface
@@ -58,6 +61,12 @@ namespace moodysim
 
         // Swap the diagonal of a quad
         void swap_triangles(int tri_l, int tri_r);
+
+        // Swap the position of two triangles in the triangles list and update neighbors 
+        void swap_triangle_positions(int tri_a, int tri_b);
+
+        // Remove the last triangle from triangles list and remove references from neighbors
+        void pop_triangle();
 
         // Used by tests to check internal state
         const std::vector<Point3D>& get_points() const { return points_; }

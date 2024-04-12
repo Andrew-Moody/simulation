@@ -4,6 +4,7 @@
 #include <vector>
 #include <array>
 #include <stack>
+#include <cmath>
 
 #include "surfacemeshdata.h"
 
@@ -62,6 +63,83 @@ namespace moodysim
         return SurfaceMeshData{ std::move(vertices), std::move(indices) };
     }
 
+
+    std::vector<Point3D> generate_sample_points()
+    {
+        std::vector<Point3D> vertices{};
+
+        // number of grid points or nodes in each dimension
+        constexpr int xsize{ 51 };
+        constexpr int ysize{ 51 };
+
+        // 
+        constexpr float zoom{ 0.9f };
+
+        // Size of the circle boundary
+        constexpr float radius{ 0.75f };
+        constexpr float sqr_radius{ radius * radius };
+
+        constexpr float scale = zoom * 2.0f / (xsize - 1);
+        constexpr float xoffset = -scale * (xsize - 1) / 2.0f;
+        constexpr float yoffset = scale * (ysize - 1) / 2.0f;
+
+        // half the distance between consecutive points
+        constexpr float halfspace{ scale / 2.f };
+
+        vertices.reserve(xsize * ysize);
+
+        for (int j = 0; j < ysize; ++j)
+        {
+            float xshift{ 0.f };
+            int xpoints{ xsize };
+
+            if (j % 2 == 0)
+            {
+                // shift all points in the row half space right and skip the last point
+                xshift = halfspace;
+                --xpoints;
+            }
+
+            for (int i = 0; i < xpoints; ++i)
+            {
+                float x = i * scale + xoffset + xshift;
+                float y = -j * scale + yoffset;
+                float z = 0.0f;
+
+                // Squared distance from origin in xy plane
+                float sqr_dist = x * x + y * y;
+
+                // Add the point only if it falls inside the circle by some margin
+                float cutoff{ sqr_radius - halfspace };
+                if (sqr_dist <= cutoff)
+                {
+                    vertices.push_back({ x, y, z });
+                }
+            }
+        }
+
+
+        // Place points around the perimeter
+
+
+        constexpr float perimeter_factor{ 2.f };
+        constexpr int perimeter_size{ static_cast<int>(perimeter_factor * xsize * 3.14159f) };
+        constexpr float angle{ 2.f * 3.14159f / perimeter_size };
+
+        for (int i = 0; i < perimeter_size; ++i)
+        {
+            float x{ radius * cosf(i * angle) };
+            float y{ radius * sinf(i * angle) };
+            float z = 0.0f;
+
+            vertices.push_back({ x, y, z });
+        }
+
+
+        return std::move(vertices);
+    }
+
+
     SurfaceMeshData DelaunayGenerator::generate_delaunay_mesh()
     {
         triangulate();
@@ -105,7 +183,8 @@ namespace moodysim
         points_.push_back({ -100.f, -100.f, 0.f });
         points_.push_back({ 100.f, -100.f, 0.f });
         points_.push_back({ 0.f, 100.f, 0.f });
-        triangles_.push_back({ num_pts, num_pts + 1, num_pts + 2 });
+        std::array<int, 3> super_triangle{ num_pts, num_pts + 1, num_pts + 2 };
+        triangles_.push_back(super_triangle);
         neighbors_.push_back({ -1, -1, -1 });
 
 
@@ -231,6 +310,50 @@ namespace moodysim
                     }
                 }
             }
+        }
+
+        // Remove triangles that include a vertex from the super triangle
+        int current{ 0 };
+        int last{ static_cast<int>(triangles_.size() - 1) };
+
+        while (current <= last)
+        {
+            bool should_remove{ false };
+
+            // Check if any point in the current triangle is a point in the super triangle
+            for (int i = 0; i < 3; ++i)
+            {
+                for (int j = 0; j < 3; ++j)
+                {
+                    // Curious if avoiding a conditional statement here
+                    // improves performance in any way
+                    /* if (triangles_[current][i] == super_triangle[j])
+                    {
+                        should_remove = true;
+                    } */
+
+                    // if set to true keep it true otherwise check the condition
+                    bool match{ triangles_[current][i] == super_triangle[j] };
+                    should_remove = should_remove || match;
+                }
+            }
+
+            if (should_remove)
+            {
+                // Swap the current triangle with the last triangle
+                swap_triangle_positions(current, last);
+
+                // Remove the last triangle (the current triangle)
+                pop_triangle();
+                --last;
+            }
+            else
+            {
+                // If a swap was performed need to check current again
+                ++current;
+            }
+
+
         }
     }
 
@@ -510,5 +633,68 @@ namespace moodysim
         {
             update_adjacent(n_c, tri_l, tri_r);
         }
+    }
+
+    void DelaunayGenerator::swap_triangle_positions(int tri_a, int tri_b)
+    {
+        // Check if the triangles are mutual neighbors and swap them if so
+        for (int i = 0; i < 3; ++i)
+        {
+            // If the triangles are mutual neighbors swap them here
+            // They will get swapped back later (only do this once)
+            if (neighbors_[tri_a][i] == tri_b || neighbors_[tri_b][i] == tri_a)
+            {
+                update_adjacent(tri_b, tri_a, tri_b);
+                update_adjacent(tri_a, tri_b, tri_a);
+                break;
+            }
+        }
+
+        // Update the neighbors of the two triangles
+        // Don't update if tri_a and tri_b are mutual neighbors (they are swapped)
+        for (int i = 0; i < 3; ++i)
+        {
+
+            if (neighbors_[tri_a][i] != -1 && neighbors_[tri_a][i] != tri_a)
+            {
+                // replace tri_a with tri_b for all the neighbors of tri_a if they exist
+                update_adjacent(neighbors_[tri_a][i], tri_a, tri_b);
+            }
+
+            if (neighbors_[tri_b][i] != -1 && neighbors_[tri_b][i] != tri_b)
+            {
+                // replace tri_b with tri_a for all the neighbors of tri_b if they exist
+                update_adjacent(neighbors_[tri_b][i], tri_b, tri_a);
+            }
+        }
+
+        // Swap the triangle and neighbor entries
+        std::array<int, 3> triangle_a{ triangles_[tri_a] };
+        std::array<int, 3> triangle_b{ triangles_[tri_b] };
+        std::array<int, 3> neigh_a{ neighbors_[tri_a] };
+        std::array<int, 3> neigh_b{ neighbors_[tri_b] };
+
+        triangles_[tri_a] = triangle_b;
+        triangles_[tri_b] = triangle_a;
+        neighbors_[tri_a] = neigh_b;
+        neighbors_[tri_b] = neigh_a;
+    }
+
+    void DelaunayGenerator::pop_triangle()
+    {
+        size_t last{ triangles_.size() - 1 };
+
+        // remove the last triangle from the neighbor lists of the last triangle's neighbors
+        for (size_t i = 0; i < 3; ++i)
+        {
+            if (neighbors_[last][i] != -1)
+            {
+                update_adjacent(neighbors_[last][i], last, -1);
+            }
+        }
+
+        // Remove the last triangle and neighbor entries
+        triangles_.pop_back();
+        neighbors_.pop_back();
     }
 }

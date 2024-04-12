@@ -4,6 +4,29 @@
 #include "graphics.h"
 #include "surfacemeshdata.h"
 
+// Utility function to check if two triangle or neighbor sets are equal
+bool array_compare_equal(const std::vector<std::array<int, 3>>& expected, const std::vector<std::array<int, 3>>& result)
+{
+    size_t array_size{ expected.size() };
+
+    if (array_size != result.size())
+    {
+        return false;
+    }
+
+    for (int i = 0; i < array_size; ++i)
+    {
+        for (int j = 0; j < 3; ++j)
+        {
+            if (expected[i][j] != result[i][j])
+            {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
 
 TEST(Delaunay, Normalization)
 {
@@ -46,20 +69,20 @@ TEST(Delaunay, FindEnclosingTriangle)
 {
     using namespace moodysim;
 
-    std::vector<Point3D> test_points{
+    std::vector<Point3D> input_points{
         { 0.5f, -0.5f, 0.f },
-        { 0.f, 5.f, 0.f },
+        { 0.f, 0.5f, 0.f },
         { -0.5f, -0.5f, 0.f },
         { 0.f, 0.f, 0.f },
     };
 
-    std::vector<std::array<int, 3>> test_triangles{
+    std::vector<std::array<int, 3>> input_triangles{
         { 0, 1, 2 }
     };
 
-    std::vector<std::array<int, 3>> test_neighbors{};
+    std::vector<std::array<int, 3>> input_neighbors{};
 
-    DelaunayGenerator delaunay_gen{ test_points, {}, test_triangles, test_neighbors };
+    DelaunayGenerator delaunay_gen{ input_points, {}, input_triangles, input_neighbors };
 
     int result = delaunay_gen.find_enclosing_triangle(3);
 
@@ -70,9 +93,9 @@ TEST(Delaunay, UpdateNeighbors)
 {
     using namespace moodysim;
 
-    std::vector<Point3D> test_points{
+    std::vector<Point3D> input_points{
         { 0.5f, -0.5f, 0.f },
-        { 0.f, 5.f, 0.f },
+        { 0.f, 0.5f, 0.f },
         { -0.5f, -0.5f, 0.f },
         { 0.f, 0.f, 0.f },
         { 0.5f, 0.5f, 0.f },
@@ -80,7 +103,7 @@ TEST(Delaunay, UpdateNeighbors)
         { 0.f, -0.75f, 0.f }
     };
 
-    std::vector<std::array<int, 3>> test_triangles{
+    std::vector<std::array<int, 3>> input_triangles{
         { 0, 1, 2 },
         // Neighbors of triangle zero that need to be updated as a result of adding point 3
         { 0, 4, 1 },
@@ -92,7 +115,7 @@ TEST(Delaunay, UpdateNeighbors)
         { 3, 2, 0 }
     };
 
-    std::vector<std::array<int, 3>> test_neighbors{
+    std::vector<std::array<int, 3>> input_neighbors{
         { 1, 2, 3 },
         // Neighbors of the original triangle
         { -1, 0, -1 },
@@ -104,7 +127,17 @@ TEST(Delaunay, UpdateNeighbors)
         { 5, 3, 4 }
     };
 
-    DelaunayGenerator delaunay_gen{ test_points, {}, test_triangles, test_neighbors };
+    std::vector<std::array<int, 3>> expected_neighbors{
+        { 1, 2, 3 },
+        { -1, 4, -1 },
+        { -1, 5, -1 },
+        { -1, 6, -1 },
+        { 6, 1, 5 },
+        { 4, 2, 6 },
+        { 5, 3, 4 }
+    };
+
+    DelaunayGenerator delaunay_gen{ input_points, {}, input_triangles, input_neighbors };
 
     int target{};
     int old_neighbor{};
@@ -117,6 +150,8 @@ TEST(Delaunay, UpdateNeighbors)
     delaunay_gen.update_adjacent(3, 0, 6);
 
     const std::vector<std::array<int, 3>>& neighbors{ delaunay_gen.get_neighbors() };
+
+    EXPECT_TRUE(array_compare_equal(expected_neighbors, delaunay_gen.get_neighbors()));
 
     EXPECT_EQ(neighbors[1][0], -1);
     EXPECT_EQ(neighbors[1][1], 4);
@@ -135,27 +170,27 @@ TEST(Delaunay, CheckDelaunay)
 {
     using namespace moodysim;
 
-    std::vector<Point3D> test_points{
+    std::vector<Point3D> input_points{
         { 0.5f, -0.5f, 0.f },
-        { 0.f, 5.f, 0.f },
+        { 0.f, 0.5f, 0.f },
         { -0.5f, -0.5f, 0.f },
         { 0.5f, 0.5f, 0.f },
-        { -0.5f, 0.5f, 0.f },
+        { -0.1f, 0.0f, 0.f } // shifted from {-0.5f, 0.5f, 0.f} to result in a thin triangle 1, 4, 2
     };
 
-    std::vector<std::array<int, 3>> test_triangles{
+    std::vector<std::array<int, 3>> input_triangles{
         { 0, 1, 2 },
         { 0, 3, 1 },
         { 1, 4, 2 },
     };
 
-    std::vector<std::array<int, 3>> test_neighbors{
+    std::vector<std::array<int, 3>> input_neighbors{
         { 1, 2, -1 },
         { -1, 0, -1 },
         { -1, 0, -1 },
     };
 
-    DelaunayGenerator delaunay_gen{ test_points, {}, test_triangles, test_neighbors };
+    DelaunayGenerator delaunay_gen{ input_points, {}, input_triangles, input_neighbors };
 
     int tri_l{ 0 };
     int tri_r1{ 1 };
@@ -172,24 +207,34 @@ TEST(Delaunay, SwapTriangles)
 {
     using namespace moodysim;
 
-    std::vector<Point3D> test_points{
+    std::vector<Point3D> input_points{
         { 0.5f, -0.5f, 0.f },
-        { 0.f, 5.f, 0.f },
+        { 0.f, 0.5f, 0.f },
         { -0.5f, -0.5f, 0.f },
         { -0.5f, 0.5f, 0.f }
     };
 
-    std::vector<std::array<int, 3>> test_triangles{
+    std::vector<std::array<int, 3>> input_triangles{
         { 0, 1, 2 },
         { 3, 2, 1 },
     };
 
-    std::vector<std::array<int, 3>> test_neighbors{
+    std::vector<std::array<int, 3>> input_neighbors{
         { -1, 1, -1 },
         { -1, 0, -1 }
     };
 
-    DelaunayGenerator delaunay_gen{ test_points, {}, test_triangles, test_neighbors };
+    std::vector<std::array<int, 3>> expected_triangles{
+        { 0, 1, 3 },
+        { 0, 3, 2 },
+    };
+
+    std::vector<std::array<int, 3>> expected_neighbors{
+        { -1, -1, 1 },
+        { 0, -1, -1 }
+    };
+
+    DelaunayGenerator delaunay_gen{ input_points, {}, input_triangles, input_neighbors };
 
     int tri_l{ 0 };
     int tri_r{ 1 };
@@ -197,28 +242,99 @@ TEST(Delaunay, SwapTriangles)
     // Swap the diagonal of a quad
     delaunay_gen.swap_triangles(tri_l, tri_r);
 
-    const std::vector<std::array<int, 3>>& triangles{ delaunay_gen.get_triangles() };
+    // Check that the resulting triangles and neighbors match expected
+    EXPECT_TRUE(array_compare_equal(expected_triangles, delaunay_gen.get_triangles()));
+    EXPECT_TRUE(array_compare_equal(expected_neighbors, delaunay_gen.get_neighbors()));
+}
 
-    const std::vector<std::array<int, 3>>& neighbors{ delaunay_gen.get_neighbors() };
 
-    std::vector<std::array<int, 3>> triangles_solution{
-        { 0, 1, 3 },
-        { 0, 3, 2 },
+TEST(Delaunay, SwapTrianglePositions)
+{
+    using namespace moodysim;
+
+    std::vector<Point3D> input_points{
+        { 0.5f, -0.5f, 0.f },
+        { 0.f, 0.5f, 0.f },
+        { -0.5f, -0.5f, 0.f },
+        { 0.5f, 0.5f, 0.f },
+        { -0.5f, 0.5f, 0.f }
     };
 
-    std::vector<std::array<int, 3>> neighbors_solution{
-        { -1, -1, 1 },
-        { 0, -1, -1 }
+    std::vector<std::array<int, 3>> input_triangles{
+        { 0, 1, 2 },
+        { 4, 2, 1 },
+        { 0, 3, 1 }
     };
 
-    for (int i = 0; i < 2; ++i)
-    {
-        for (int j = 0; j < 3; ++j)
-        {
-            EXPECT_EQ(triangles[i][j], triangles_solution[i][j]);
-            EXPECT_EQ(neighbors[i][j], neighbors_solution[i][j]);
-        }
-    }
+    std::vector<std::array<int, 3>> input_neighbors{
+        { 2, 1, -1 },
+        { -1, 0, -1 },
+        { -1, 0, -1 }
+    };
+
+    std::vector<std::array<int, 3>> expected_triangles{
+        { 0, 3, 1 },
+        { 4, 2, 1 },
+        { 0, 1, 2 }
+    };
+
+    std::vector<std::array<int, 3>> expected_neighbors{
+        { -1, 2, -1 },
+        { -1, 2, -1 },
+        { 0, 1, -1 }
+    };
+
+    DelaunayGenerator delaunay_gen{ input_points, {}, input_triangles, input_neighbors };
+
+    int tri_a{ 0 };
+    int tri_b{ 2 };
+
+    // Swap the positions of two triangles in the triangles list
+    delaunay_gen.swap_triangle_positions(tri_a, tri_b);
+
+    // Check that the resulting triangles and neighbors match expected
+    EXPECT_TRUE(array_compare_equal(expected_triangles, delaunay_gen.get_triangles()));
+    EXPECT_TRUE(array_compare_equal(expected_neighbors, delaunay_gen.get_neighbors()));
+}
+
+
+TEST(Delaunay, PopTriangle)
+{
+    using namespace moodysim;
+
+    std::vector<Point3D> input_points{
+        { 0.5f, -0.5f, 0.f },
+        { 0.f, 0.5f, 0.f },
+        { -0.5f, -0.5f, 0.f },
+        { -0.5f, 0.5f, 0.f }
+    };
+
+    std::vector<std::array<int, 3>> input_triangles{
+        { 0, 1, 2 },
+        { 3, 2, 1 },
+    };
+
+    std::vector<std::array<int, 3>> input_neighbors{
+        { -1, 1, -1 },
+        { -1, 0, -1 }
+    };
+
+    std::vector<std::array<int, 3>> expected_triangles{
+        { 0, 1, 2 }
+    };
+
+    std::vector<std::array<int, 3>> expected_neighbors{
+        { -1, -1, -1 }
+    };
+
+    DelaunayGenerator delaunay_gen{ input_points, {}, input_triangles, input_neighbors };
+
+    // Remove the last triangle from the list
+    delaunay_gen.pop_triangle();
+
+    // Check that the resulting triangles and neighbors match expected
+    EXPECT_TRUE(array_compare_equal(expected_triangles, delaunay_gen.get_triangles()));
+    EXPECT_TRUE(array_compare_equal(expected_neighbors, delaunay_gen.get_neighbors()));
 }
 
 
@@ -226,27 +342,21 @@ TEST(Delaunay, Generation)
 {
     using namespace moodysim;
 
-    /* std::vector<Point3D> test_points{
-        { 0.5f, -0.5f, 0.f },
-        { 0.f, 0.5f, 0.f },
-        { -0.5f, -0.5f, 0.f }
-    }; */
-
-    std::vector<Point3D> test_points{
+    /* std::vector<Point3D> input_points{
         { 0.5f, -0.5f, 0.f },
         { 0.f, 0.5f, 0.f },
         { -0.5f, -0.5f, 0.f },
         { 0.f, 0.f, 0.f },
         { 0.5f, 0.5f, 0.f },
         { -0.5f, 0.5f, 0.f },
-        //{ 0.f, -0.75f, 0.f }
-    };
+        { 0.f, -0.75f, 0.f }
+    }; */
 
-    DelaunayGenerator delaunay_gen{ test_points };
+    std::vector<Point3D> input_points{ generate_sample_points() };
+
+    DelaunayGenerator delaunay_gen{ input_points };
 
     SurfaceMeshData mesh_data = delaunay_gen.generate_delaunay_mesh();
-
-    //SurfaceMeshData mesh_data = generate_sample_mesh();
 
     GLFWContext glfw_context{};
 
