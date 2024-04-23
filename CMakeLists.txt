@@ -5,6 +5,10 @@ project(MESHING LANGUAGES C CXX)
 set(MAIN_TARGET simulation)
 set(TEST_TARGET testsimulation)
 
+option(BUILD_SHARED_LIBS "Build shared libraries" ON)
+
+message("BUILD_SHARED_LIBS: " ${BUILD_SHARED_LIBS})
+
 add_executable(${TEST_TARGET} "")
 
 add_subdirectory(tests)

@@ -15,7 +15,7 @@ namespace moodysim
 
     SurfaceMeshData generate_sample_mesh();
 
-    std::vector<Point3D> generate_sample_points();
+    std::vector<Point3D> generate_sample_points(float radius, int density);
 
 
     // This class is not intended to be a public interface

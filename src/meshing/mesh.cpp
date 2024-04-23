@@ -17,19 +17,19 @@ namespace moodysim
         std::vector<unsigned int> indices{};
 
         // number of grid points or nodes in each dimension
-        constexpr int xsize{ 11 };
-        constexpr int ysize{ 6 };
+        constexpr int xpoints{ 11 };
+        constexpr int ypoints{ 6 };
 
-        constexpr float scale = 1.0f / (xsize - 1);
+        constexpr float scale = 1.0f / (xpoints - 1);
         constexpr float xoffset = -0.5f;
-        constexpr float yoffset = scale * (ysize - 1) / 2.0f;
+        constexpr float yoffset = scale * (ypoints - 1) / 2.0f;
 
-        vertices.reserve(xsize * ysize);
-        indices.reserve(6 * (xsize - 1) * (ysize - 1));
+        vertices.reserve(xpoints * ypoints);
+        indices.reserve(6 * (xpoints - 1) * (ypoints - 1));
 
-        for (int j = 0; j < ysize; ++j)
+        for (int j = 0; j < ypoints; ++j)
         {
-            for (int i = 0; i < xsize; ++i)
+            for (int i = 0; i < xpoints; ++i)
             {
                 float x = i * scale + xoffset;
                 float y = -j * scale + yoffset;
@@ -39,15 +39,15 @@ namespace moodysim
             }
         }
 
-        for (int j = 0; j < ysize - 1; ++j)
+        for (int j = 0; j < ypoints - 1; ++j)
         {
-            for (int i = 0; i < xsize - 1; ++i)
+            for (int i = 0; i < xpoints - 1; ++i)
             {
                 // four points around a quad clockwise from topleft
-                int idx0 = i + xsize * j;   // topleft
+                int idx0 = i + xpoints * j;   // topleft
                 int idx1 = idx0 + 1;        // topright
-                int idx2 = idx0 + 1 + xsize;    // bottomright
-                int idx3 = idx0 + xsize;        // bottomleft
+                int idx2 = idx0 + 1 + xpoints;    // bottomright
+                int idx3 = idx0 + xpoints;        // bottomleft
 
                 // Two triangles to make a quad
                 indices.push_back(idx0);
@@ -64,46 +64,44 @@ namespace moodysim
     }
 
 
-    std::vector<Point3D> generate_sample_points()
+    std::vector<Point3D> generate_sample_points(float radius, int density)
     {
         std::vector<Point3D> vertices{};
 
-        // number of grid points or nodes in each dimension
-        constexpr int xsize{ 51 };
-        constexpr int ysize{ 51 };
+        const int xpoints{ static_cast<int>(2.0f * radius * density) + 1 };
 
-        // 
-        constexpr float zoom{ 0.9f };
+        const float xspace = 2.0f / (xpoints - 1);
+        const float yspace = 0.8660f * xspace;
 
-        // Size of the circle boundary
-        constexpr float radius{ 0.75f };
-        constexpr float sqr_radius{ radius * radius };
+        const int ypoints{ static_cast<int>(2.0f * radius / yspace) + 2 };
 
-        constexpr float scale = zoom * 2.0f / (xsize - 1);
-        constexpr float xoffset = -scale * (xsize - 1) / 2.0f;
-        constexpr float yoffset = scale * (ysize - 1) / 2.0f;
+        const float xoffset = -xspace * (xpoints - 1) / 2.0f;
+        const float yoffset = yspace * (ypoints - 1) / 2.0f;
 
         // half the distance between consecutive points
-        constexpr float halfspace{ scale / 2.f };
+        const float halfspace{ xspace / 2.f };
 
-        vertices.reserve(xsize * ysize);
+        // Size of the circle boundary
+        const float sqr_radius{ radius * radius };
 
-        for (int j = 0; j < ysize; ++j)
+        vertices.reserve(xpoints * ypoints);
+
+        for (int j = 0; j < ypoints; ++j)
         {
             float xshift{ 0.f };
-            int xpoints{ xsize };
+            int xpoints_mod{ xpoints };
 
             if (j % 2 == 0)
             {
                 // shift all points in the row half space right and skip the last point
                 xshift = halfspace;
-                --xpoints;
+                --xpoints_mod;
             }
 
-            for (int i = 0; i < xpoints; ++i)
+            for (int i = 0; i < xpoints_mod; ++i)
             {
-                float x = i * scale + xoffset + xshift;
-                float y = -j * scale + yoffset;
+                float x = i * xspace + xoffset + xshift;
+                float y = -j * yspace + yoffset;
                 float z = 0.0f;
 
                 // Squared distance from origin in xy plane
@@ -121,10 +119,9 @@ namespace moodysim
 
         // Place points around the perimeter
 
-
-        constexpr float perimeter_factor{ 2.f };
-        constexpr int perimeter_size{ static_cast<int>(perimeter_factor * xsize * 3.14159f) };
-        constexpr float angle{ 2.f * 3.14159f / perimeter_size };
+        constexpr float perimeter_factor{ 1.f };
+        const int perimeter_size{ static_cast<int>(perimeter_factor * xpoints * 3.14159f) };
+        const float angle{ 2.f * 3.14159f / perimeter_size };
 
         for (int i = 0; i < perimeter_size; ++i)
         {

@@ -352,7 +352,7 @@ TEST(Delaunay, Generation)
         { 0.f, -0.75f, 0.f }
     }; */
 
-    std::vector<Point3D> input_points{ generate_sample_points() };
+    std::vector<Point3D> input_points{ generate_sample_points(1.0f, 5) };
 
     DelaunayGenerator delaunay_gen{ input_points };
 
