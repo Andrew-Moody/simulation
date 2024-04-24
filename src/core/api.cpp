@@ -14,7 +14,7 @@ void delaunay_sample(float radius, int density)
 
     std::vector<Point3D> input_points{ generate_sample_points(radius, density) };
 
-    DelaunayGenerator delaunay_gen{ input_points };
+    DelaunayGenerator delaunay_gen{ input_points, {} };
 
     SurfaceMeshData mesh_data = delaunay_gen.generate_delaunay_mesh();
 

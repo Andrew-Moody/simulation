@@ -11,6 +11,11 @@ namespace moodysim
         float x{}, y{}, z{};
     };
 
+    struct Edge
+    {
+        int n1{}, n2{};
+    };
+
     class SurfaceMeshData;
 
     SurfaceMeshData generate_sample_mesh();
@@ -25,24 +30,27 @@ namespace moodysim
     {
     public:
 
-        DelaunayGenerator(std::vector<Point3D> points)
-            : points_(std::move(points))
+        DelaunayGenerator(std::vector<Point3D> points, std::vector<Edge> edges)
+            : points_(std::move(points)), edges_(std::move(edges))
         {}
 
         // Allow for state injection for testing purposes
         DelaunayGenerator(
             std::vector<Point3D> points,
             std::vector<int> point_ordering,
+            std::vector<Edge> edges,
             std::vector<std::array<int, 3>> triangles,
             std::vector<std::array<int, 3>> neighbors
         )
             : points_(std::move(points)), point_ordering_(std::move(point_ordering)),
-            triangles_(std::move(triangles)), neighbors_(std::move(neighbors))
+            edges_(std::move(edges)), triangles_(std::move(triangles)), neighbors_(std::move(neighbors))
         {}
 
         SurfaceMeshData generate_delaunay_mesh();
 
         void triangulate();
+
+        void apply_constraint();
 
         void normalize_points();
 
@@ -82,6 +90,8 @@ namespace moodysim
 
         // The location each point has been moved to as a result of sorting
         std::vector<int> point_ordering_{};
+
+        std::vector<Edge> edges_{};
 
         // Each triangle is defined by three indices into the points vector
         std::vector<std::array<int, 3>> triangles_;

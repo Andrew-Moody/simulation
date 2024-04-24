@@ -354,6 +354,11 @@ namespace moodysim
         }
     }
 
+    void DelaunayGenerator::apply_constraint()
+    {
+
+    }
+
     void DelaunayGenerator::normalize_points()
     {
         // Normalize the coordinates of all of the points between 0 and 1
