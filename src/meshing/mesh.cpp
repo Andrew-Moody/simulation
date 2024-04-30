@@ -356,7 +356,163 @@ namespace moodysim
 
     void DelaunayGenerator::apply_constraint()
     {
+        // Make a list of triangle indices keyed by vertex index
+        // to give a starting search triangle for a given vertex
+        // There is one triangle per vertex not all triangles the
+        // vertex is a part of
 
+        std::vector<int> starting_tris(triangles_.size(), -1);
+
+        for (int t = 0; t < triangles_.size(); ++t)
+        {
+            for (int i = 0; i < 3; ++i)
+            {
+                int v = triangles_[t][i];
+
+                if (starting_tris[v] == -1)
+                {
+                    starting_tris[v] = t;
+                }
+            }
+        }
+
+        // Check that all of the vertices are assigned a triangle
+        for (auto t : starting_tris)
+        {
+            if (t == -1)
+            {
+                std::cerr << "Error: failed to create vertex to triangle list while applying constraints" << std::endl;
+                return;
+            }
+        }
+
+
+        // Loop over the constraining edges
+        for (int constraint = 0; constraint < edges_.size(); ++constraint)
+        {
+            // If the edge already exists in the triangulation
+            // skip to the next edge
+            // Otherwise find all of the edges in the triangulation
+            // that cross the target edge to remove them
+            // It is recommended to make a list that holds the triangles each vertex
+            // is a part of (inverse of triangles list)
+
+            int con_start = edges_[constraint].n1;
+            int con_end = edges_[constraint].n2;
+
+            // Find all of the triangles that contain the constraint start vertex
+            std::vector<int> search_tris{};
+
+            int previous{ -1 };
+            int current{ starting_tris[con_start] };
+
+            while (current != previous)
+            {
+                search_tris.push_back(current);
+
+                previous = current;
+
+                // Check each neighbor of the current triangle
+                for (int n = 0; n < 3; ++n)
+                {
+                    int neighbor = neighbors_[current][n];
+
+                    // Avoid neighbors that have already been checked
+                    if (neighbor == previous)
+                    {
+                        continue;
+                    }
+
+                    // Check that the neighbor contains the constraint start vertex
+                    for (int v = 0; v < 3; ++v)
+                    {
+                        if (triangles_[n][v] == con_start)
+                        {
+                            current = neighbor;
+                        }
+                    }
+                }
+            }
+
+
+            // Go around the triangles containing con_start in a circle and try to find either
+            // an edge that coincides with the constraint or an edge that intersects the constraint
+            bool found_match{ false };
+            bool found_intersection{ false };
+
+            for (auto search_tri : search_tris)
+            {
+
+
+                // Check each edge of the triangle looking for a match or intersection
+                for (int i = 0; i < 3; ++i)
+                {
+                    int e_start = triangles_[search_tri][i];
+                    int e_end = triangles_[search_tri][(i + 1) % 3];
+
+                    if (e_start == con_start && e_end == con_end)
+                    {
+                        found_match = true;
+                        break;
+                    }
+
+                    if (check_intersection(points_[e_start], points_[e_end], points_[con_start], points_[con_end]))
+                    {
+                        found_intersection = true;
+                        break;
+                    }
+                }
+
+                if (found_match || found_intersection)
+                {
+                    break;
+                }
+            }
+
+            // The constraint edge is already a part of the triangulation so skip to the next constraint
+            if (found_match)
+            {
+                continue;
+            }
+
+            // If neither match nor intersection was found then the search list was not created correctly
+            if (!found_intersection)
+            {
+                std::cerr << "Error: Failed to find a matching or intersecting triangle for the edge contraint" << std::endl;
+                return;
+            }
+
+            // Walk from triangle to triangle in the direction of the constraint end point
+            // adding any intersecting edges along the way
+
+
+            // While there are still intersecting edges
+            {
+                // Remove an edge from the edge list that intersects the constraint
+
+                // Check if the two triangles sharing this edge form a convex quadrilateral
+
+                // If they do not form a convex quadrilateral, place the edge back on the list and continue
+
+                // If they do form a convex quadrilateral, swap the diagonal of the two triangles
+                // If the new edge still intersects the constraint, add it to intersection list,
+                // otherwise add it to a list of newly created edges
+            }
+
+            // Restore Delaunay Condition
+
+            // Loop over newly created edges until no more swaps take place
+            {
+                // if the new edge is not the constrained edge, check if the triangles
+                // that share the edge satisfy the Delaunay Condition
+
+                // If they do not, then swap the diagonal, replacing the edge in the new edge list
+            }
+
+            // Remove triangles that share a vertex with the super triangle or are outside the boundary
+            // Trace each boundary and mark triangles for deletion
+
+        }
     }
 
     void DelaunayGenerator::normalize_points()
@@ -698,5 +854,58 @@ namespace moodysim
         // Remove the last triangle and neighbor entries
         triangles_.pop_back();
         neighbors_.pop_back();
+    }
+
+    bool DelaunayGenerator::check_outward(Point3D p, Point3D e1, Point3D e2)
+    {
+        // Imagine a vector normal to the edge and pointing outward relative to
+        // the triangle being checked. This is checking if the direction of the normal
+        // vector is pointing toward or away from point p to help determine if the triangle
+        // sharing the edge is a step closer to the target
+
+        // To check this take the crossproduct of e1-p and e2-p
+        // For the 2D case, the x and y components are zero and the sign of the resulting
+        // z component tells if the point is outward
+
+        float ux = e1.x - p.x;
+        float uy = e1.y - p.y;
+
+        float vx = e2.x - p.x;
+        float vy = e2.y - p.y;
+
+        if (uy * vx > ux * vy)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    bool DelaunayGenerator::check_intersection(Point3D a1, Point3D a2, Point3D b1, Point3D b2)
+    {
+        Point3D cross1 = cross_product(subtract(a2, a1), subtract(b2, a2));
+
+        Point3D cross2 = cross_product(subtract(a2, a1), subtract(b1, a2));
+
+        Point3D cross3 = cross_product(subtract(b2, b1), subtract(a2, b2));
+
+        Point3D cross4 = cross_product(subtract(b2, b1), subtract(a1, b2));
+
+        if (dot_product(cross1, cross2) > 0.f && dot_product(cross3, cross4) > 0.f)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    bool DelaunayGenerator::check_convex(int t1, int t2)
+    {
+
+
+
+
+
+        return false;
     }
 }

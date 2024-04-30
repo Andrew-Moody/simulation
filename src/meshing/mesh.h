@@ -76,6 +76,16 @@ namespace moodysim
         // Remove the last triangle from triangles list and remove references from neighbors
         void pop_triangle();
 
+
+        // Check if the point p lies "to the right" of edge e1-e2
+        bool check_outward(Point3D p, Point3D e1, Point3D e2);
+
+        // Check if the line segments a1-a2 and b1-b2 intersect
+        bool check_intersection(Point3D a1, Point3D a2, Point3D b1, Point3D b2);
+
+        // Check if two triangles form a convex quadrilateral
+        bool check_convex(int t1, int t2);
+
         // Used by tests to check internal state
         const std::vector<Point3D>& get_points() const { return points_; }
         const std::vector<int>& get_point_ordering() const { return point_ordering_; }
@@ -101,4 +111,28 @@ namespace moodysim
         std::vector<std::array<int, 3>> neighbors_;
 
     };
+
+
+    Point3D subtract(Point3D a, Point3D b)
+    {
+        return Point3D{
+            (a.x - b.x),
+            (a.y - b.y),
+            (a.z - b.z)
+        };
+    }
+
+    float dot_product(Point3D a, Point3D b)
+    {
+        return a.x * b.x + a.y * b.y + a.z * b.z;
+    }
+
+    Point3D cross_product(Point3D a, Point3D b)
+    {
+        return Point3D{
+            (a.y * b.z - a.z * b.y),
+            (a.z * b.x - a.x * b.z),
+            (a.x * b.y - a.y * b.x)
+        };
+    }
 }
